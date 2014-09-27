@@ -1,6 +1,7 @@
 from ParticlePlay import Scene
 from ParticlePlay import Color
 from Network import *
+from Bonus import *
 from Bullet import *
 from Player import *
 import time
@@ -8,12 +9,14 @@ import random
 
 class GameServerScene(Scene):
 	bullets = []
+	bonuses = []
 	players = {}
 	bid = 1
 	pid = 1
 	pps = 0
 	packetCount = 0
 	lastTime = time.time()+1.0
+	lastBonus = time.time()+10.0
 
 	def __init__(self, serverSocket):
 		self.serverSocket = serverSocket
@@ -52,11 +55,14 @@ class GameServerScene(Scene):
 	def onRender(self, renderer, delta):
 		renderer.drawString((10, 20), "Connected Clients: " + str(len(self.players)))
 		renderer.drawString((10, 35), "Bullets on screen: " + str(len(self.bullets)))
-		renderer.drawString((10, 50), "Packet per second: " + str(self.pps))
+		renderer.drawString((10, 50), "Bonuses on screen: " + str(len(self.bonuses)))
+		renderer.drawString((10, 65), "Packet per second: " + str(self.pps))
 
 		self.serverSocket.serverLock()
 		for bullet in self.bullets:
 			bullet.onRender(renderer)
+		for bonus in self.bonuses:
+			bonus.onRender(renderer)
 		for client in self.players:
 			player = self.players[client]
 			player.onRender(renderer)
@@ -79,13 +85,33 @@ class GameServerScene(Scene):
 
 			for client in self.players:
 				player = self.players[client]
-				if player.isIntersectBullet(bullet):
+				if player.isIntersectObject(bullet):
 					player.takeDamage(bullet)
 
 			self.serverSocket.sendPacket(BulletInfoPacket(bullet.getPosition(), bullet.getVelocity(), bullet.isAlive(), bullet.getBulletId()))
 			if bullet.isAlive():
 				new_bullets.append(bullet)
 		self.bullets = new_bullets
+
+		if self.lastBonus < time.time():
+			if len(self.bonuses) < 1:
+				w, h = self.getGame().getSize()
+				self.bonuses.append(Bonus([random.randint(10, w-10), random.randint(10, h-10)]))
+			self.lastBonus = time.time()+10.0
+
+		new_bonuses = []
+		for bonus in self.bonuses:
+			bonus.onUpdate(delta)
+
+			for client in self.players:
+				player = self.players[client]
+				if player.isIntersectObject(bonus):
+					player.takeBonus(bonus)
+
+			self.serverSocket.sendPacket(BonusInfoPacket(bonus.getPosition(), bonus.isAlive(), bonus.getBonusId()))
+			if bonus.isAlive():
+				new_bonuses.append(bonus)
+		self.bonuses = new_bonuses
 
 		new_players = {}
 		for client in self.players:
@@ -104,6 +130,7 @@ class GameServerScene(Scene):
 					w, h = self.getGame().getSize()
 					new_players[client] = Player(self.getGame(), [w/2, h/2])
 		self.players = new_players
+
 		self.serverSocket.serverUnlock()
 		if gameInput.isKeyDown("escape"):
 			self.getGame().stopGame()

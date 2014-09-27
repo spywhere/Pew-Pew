@@ -1,6 +1,7 @@
 from ParticlePlay import Scene
 from ParticlePlay import Color
 from Network import *
+from Bonus import *
 from Bullet import *
 from Player import *
 import math
@@ -8,6 +9,7 @@ import math
 class GameScene(Scene):
 	player = None
 	bullets = {}
+	bonuses = {}
 	players = {}
 
 	def __init__(self, clientSocket):
@@ -20,6 +22,7 @@ class GameScene(Scene):
 			w, h = self.getGame().getSize()
 			self.player = Player(self.getGame(), [w/2, h/2], Color(255, 255, 255))
 			self.bullets = {}
+			self.bonuses = {}
 			self.players = {}
 		elif isinstance(packet, Packets.PlayerInfoPacket):
 			if packet.isMe():
@@ -46,6 +49,16 @@ class GameScene(Scene):
 			bullet.resetTimeout()
 			if not packet.isAlive():
 				bullet.kill()
+		elif isinstance(packet, Packets.BonusInfoPacket):
+			if packet.getBonusId() not in self.bonuses:
+				bonus = Bonus()
+				self.bonuses[packet.getBonusId()] = bonus
+			else:
+				bonus = self.bonuses[packet.getBonusId()]
+			bonus.setPosition(packet.getPosition())
+			bonus.resetTimeout()
+			if not packet.isAlive():
+				bonus.kill()
 		elif isinstance(packet, Packets.PlayerGunPacket):
 			self.player.getGun().setReload(packet.isReloading())
 			self.player.getGun().setBulletInMagazine(packet.getBulletInMagazine())
@@ -78,6 +91,9 @@ class GameScene(Scene):
 		for bid in self.bullets:
 			bullet = self.bullets[bid]
 			bullet.onRender(renderer)
+		for bid in self.bonuses:
+			bonus = self.bonuses[bid]
+			bonus.onRender(renderer)
 		for pid in self.players:
 			player = self.players[pid]
 			player.onRender(renderer)
@@ -120,11 +136,24 @@ class GameScene(Scene):
 
 			for clientid in self.players:
 				player = self.players[clientid]
-				if player.isIntersectBullet(bullet):
+				if player.isIntersectObject(bullet):
 					bullet.kill()
 			if bullet.isAlive() and not bullet.isTimeout():
 				new_bullets[bid] = bullet
 		self.bullets = new_bullets
+
+		new_bonuses = {}
+		for bid in self.bonuses:
+			bonus = self.bonuses[bid]
+			bonus.onUpdate(delta)
+
+			for clientid in self.players:
+				player = self.players[clientid]
+				if player.isIntersectObject(bonus):
+					bonus.kill()
+			if bonus.isAlive() and not bonus.isTimeout():
+				new_bonuses[bid] = bonus
+		self.bonuses = new_bonuses
 
 		new_players = {}
 		for pid in self.players:

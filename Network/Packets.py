@@ -98,6 +98,43 @@ class BulletInfoPacket(GamePacket):
 	def isAlive(self):
 		return self.alive
 
+class BonusInfoPacket(GamePacket):
+	def __init__(self, position=[-1, -1], alive=True, bid=0):
+		self.bid = bid
+		self.x = position[0]
+		self.y = position[1]
+		self.alive = alive
+
+	@classmethod
+	def getPacketId(cls):
+		return 4
+
+	@classmethod
+	def fromString(cls, data):
+		datacomponents = data.split(",")
+		if len(datacomponents) >= 3:
+			try:
+				alive = bool(int(datacomponents[0][0]))
+				bid = int(datacomponents[0][1:])
+				x = float(datacomponents[1])
+				y = float(datacomponents[2])
+				return BonusInfoPacket([x, y], alive, bid)
+			except Exception:
+				pass
+		return None
+
+	def toString(self):
+		return "%1d%d,%f,%f" % (self.alive, self.bid, self.x, self.y)
+
+	def getBonusId(self):
+		return self.bid
+
+	def getPosition(self):
+		return (self.x, self.y)
+
+	def isAlive(self):
+		return self.alive
+
 class PlayerGunPacket(GamePacket):
 	def __init__(self, reloading=False, bulletInMagazine=0, totalBullet=0):
 		self.reloading = reloading
@@ -106,7 +143,7 @@ class PlayerGunPacket(GamePacket):
 
 	@classmethod
 	def getPacketId(cls):
-		return 4
+		return 5
 
 	@classmethod
 	def fromString(cls, data):

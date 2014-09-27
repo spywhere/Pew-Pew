@@ -5,7 +5,7 @@ class GamePacket:
 
 	@classmethod
 	def parsePacket(cls, data):
-		from Packets import RequestGameStatePacket, RequestGameStatePacket, PlayerInfoPacket, PlayerGunPacket, BulletInfoPacket
+		from Packets import RequestGameStatePacket, RequestGameStatePacket, PlayerInfoPacket, PlayerGunPacket, BulletInfoPacket, BonusInfoPacket
 		if RequestGameStatePacket.isPacket(data):
 			return RequestGameStatePacket.deserializeData(data)
 		elif PlayerInfoPacket.isPacket(data):
@@ -14,6 +14,8 @@ class GamePacket:
 			return PlayerGunPacket.deserializeData(data)
 		elif BulletInfoPacket.isPacket(data):
 			return BulletInfoPacket.deserializeData(data)
+		elif BonusInfoPacket.isPacket(data):
+			return BonusInfoPacket.deserializeData(data)
 		return None
 
 	def setMe(self, me):

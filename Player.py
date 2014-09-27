@@ -118,11 +118,15 @@ class Player:
 	def isDead(self):
 		return self.health <= 0 or self.timeout+10.0 < time.time()
 
-	def isIntersectBullet(self, bullet):
+	def isIntersectObject(self, obj):
 		px, py = self.position
-		bx, by = bullet.getPosition()
+		bx, by = obj.getPosition()
 		distance = math.sqrt(((px-bx)**2)+((py-by)**2))
-		return distance < 10+(bullet.getSize()/2)
+		return distance < 10+(obj.getSize()/2)
+
+	def takeBonus(self, bonus):
+		self.getGun().setTotalBullet(self.getGun().getTotalBullet()+bonus.getTotalBullet())
+		bonus.kill()
 
 	def takeDamage(self, bullet):
 		if self.isBot():
