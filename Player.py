@@ -8,24 +8,38 @@ import time
 class Player:
     def __init__(self, game, position=[0, 0], color=Color(255, 127, 127),
                  bot=False):
-        self.timeout = time.time()
+        self.name = "Unknown"
         self.pid = 0
         self.game = game
-        self.speed = 200
-        self.health = 100
-        self.angle = 0
-        self.position = position
         self.color = color
-        self.gun = Gun(7, 21)
-        self.velocity = [0, 0]
         self.bot = bot
+        self.speed = 200
+        self.delegate = None
+        self.death = 0
+        self.respawn(position)
+        self.death = 0
+
+    def respawn(self, position):
+        self.death += 1
+        self.respawnTime = 3
+        self.timeout = time.time()
+        self.health = 100
+        self.velocity = [0, 0]
+        self.gun = Gun(7, 21)
+        self.position = position
+        self.angle = 0
+        return self
 
     def shoot(self):
+        if self.respawnTime > 0:
+            return []
         return self.gun.shoot(self, self.angle, 10)
 
     def onRender(self, renderer):
         oldColor = renderer.getColor()
         renderer.setColor(self.color)
+        if self.respawnTime > 0:
+            renderer.setColor(Color(100, 100, 100))
         renderer.drawOval(self.position, [20, 20])
 
         renderer.setColor(Color(192, 192, 192))
@@ -41,11 +55,13 @@ class Player:
             )
         ])
 
-        renderer.setColor(Color(127, 127, 127))
-        renderer.drawRect([px-12, py-17], [25, 2])
-        if self.health > 0:
-            renderer.setColor(Color(127, 255, 127))
-            renderer.fillRect([px-12, py-17], [self.health*25/100, 2])
+        if ((not self.delegate and self.respawnTime <= 0) or
+                (self.delegate and self.delegate(self, "HealthBar"))):
+            renderer.setColor(Color(127, 127, 127))
+            renderer.drawRect([px-12, py-17], [25, 2])
+            if self.health > 0:
+                renderer.setColor(Color(127, 255, 127))
+                renderer.fillRect([px-12, py-17], [self.health*25/100, 2])
 
         renderer.setColor(oldColor)
 
@@ -74,6 +90,9 @@ class Player:
         vy = math.cos(self.angle)*self.getSpeed()
         self.velocity = [vx, vy]
 
+    def clamp(self, value, minVal, maxVal):
+        return max(minVal, min(value, maxVal))
+
     def onUpdate(self, delta):
         if self.isBot():
             self.doAI()
@@ -82,17 +101,34 @@ class Player:
         vx, vy = self.velocity
         x += vx*delta
         y += vy*delta
-        self.position = [x, y]
+        if self.respawnTime > 0:
+            self.respawnTime -= delta
+        elif self.respawnTime < 0:
+            self.respawnTime = 0
+        w, h = self.game.getSize()
+        self.position = [
+            self.clamp(x, 17, w - 12),
+            self.clamp(y, 20, h - 12)
+        ]
         self.gun.onUpdate(delta)
 
     def isBot(self):
         return self.bot
+
+    def setDelegate(self, delegate):
+        self.delegate = delegate
 
     def setPlayerId(self, pid):
         self.pid = pid
 
     def getPlayerId(self):
         return self.pid
+
+    def setPlayerName(self, name):
+        self.name = name
+
+    def getPlayerName(self):
+        return self.name
 
     def setPosition(self, position):
         self.position = position
@@ -130,11 +166,23 @@ class Player:
     def getHealth(self):
         return self.health
 
+    def setDeath(self, death):
+        self.death = death
+
+    def getDeath(self):
+        return self.death
+
+    def setRespawnTime(self, respawnTime):
+        self.respawnTime = respawnTime
+
+    def getRespawnTime(self):
+        return max(0, self.respawnTime)
+
     def resetTimeout(self):
         self.timeout = time.time()
 
     def isDead(self):
-        return self.health <= 0 or self.timeout+10.0 < time.time()
+        return self.health <= 0 or self.timeout+3.0 < time.time()
 
     def isIntersectObject(self, obj):
         px, py = self.position

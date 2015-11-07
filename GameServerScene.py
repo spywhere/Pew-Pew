@@ -12,7 +12,9 @@ class GameServerScene(Scene):
     bullets = []
     bonuses = []
     players = {}
+    bots = {}
     bid = 1
+    bnid = 1
     pid = 1
     pps = 0
     packetCount = 0
@@ -37,6 +39,7 @@ class GameServerScene(Scene):
                         )
                     )
                     player.setPlayerId(self.pid)
+                    player.setPlayerName(packet.getPlayerName())
                     self.pid += 1
                     self.players[client] = player
                 else:
@@ -54,7 +57,7 @@ class GameServerScene(Scene):
             self.packetCount += 1
         elif packet is not None:
             self.packetCount += 1
-            print "Packet received (type " + str(packet) + ")"
+            print("Packet received (type " + str(packet) + ")")
         self.serverSocket.serverUnlock()
 
     def onInit(self):
@@ -71,6 +74,22 @@ class GameServerScene(Scene):
             (10, 50), "Bonuses on screen: " + str(len(self.bonuses))
         )
         renderer.drawString((10, 65), "Packet per second: " + str(self.pps))
+
+        offset = 0
+        for player in self.players.values():
+            message = "%s: " % (player.getPlayerName())
+            if player.getRespawnTime() > 0:
+                message = "[respawn in %.2fs] %s" % (
+                    player.getRespawnTime(),
+                    message
+                )
+            message += "%s Deaths" % (player.getDeath())
+            import Tkinter as tk
+            renderer.drawString(
+                (self.getGame().getWidth() - 10, 5 + offset),
+                message, anchor=tk.NE
+            )
+            offset += 12
 
         self.serverSocket.serverLock()
         for bullet in self.bullets:
@@ -89,6 +108,14 @@ class GameServerScene(Scene):
             self.lastTime = time.time()+1.0
 
         self.serverSocket.serverLock()
+
+        if len(self.players) == 0:
+            self.pid = 1
+        if len(self.bullets) == 0:
+            self.bid = 1
+        if len(self.bonuses) == 0:
+            self.bnid = 1
+
         new_bullets = []
         for bullet in self.bullets:
             bullet.onUpdate(delta)
@@ -98,9 +125,9 @@ class GameServerScene(Scene):
                     y < -(bullet.getSize()/2) or y > h+(bullet.getSize()/2)):
                 bullet.kill()
 
-            for client in self.players:
-                player = self.players[client]
-                if player.isIntersectObject(bullet):
+            for player in self.players.values():
+                if (player.isIntersectObject(bullet) and
+                        player.getRespawnTime() <= 0):
                     player.takeDamage(bullet)
 
             self.serverSocket.sendPacket(BulletInfoPacket(
@@ -112,19 +139,21 @@ class GameServerScene(Scene):
         self.bullets = new_bullets
 
         if self.lastBonus < time.time():
-            if len(self.bonuses) < 1:
+            if len(self.bonuses) < 5:
                 w, h = self.getGame().getSize()
-                self.bonuses.append(Bonus([
+                bonus = Bonus([
                     random.randint(10, w-10), random.randint(10, h-10)
-                ]))
-            self.lastBonus = time.time()+10.0
+                ])
+                bonus.setBonusId(self.bnid)
+                self.bnid += 1
+                self.bonuses.append(bonus)
+            self.lastBonus = time.time()+5.0
 
         new_bonuses = []
         for bonus in self.bonuses:
             bonus.onUpdate(delta)
 
-            for client in self.players:
-                player = self.players[client]
+            for player in self.players.values():
                 if player.isIntersectObject(bonus):
                     player.takeBonus(bonus)
 
@@ -143,10 +172,16 @@ class GameServerScene(Scene):
                 pangle = player.getAngle()
                 player.onUpdate(delta)
                 if ppos != player.getPosition() or pangle != player.getAngle():
+                    position = player.getPosition()
+                    if player.getRespawnTime() > 0:
+                        position = [-1, -1]
+
                     self.serverSocket.sendPacket(
                         PlayerInfoPacket(
-                            player.getPosition(), player.getVelocity(),
+                            player.getPlayerName(),
+                            position, player.getVelocity(),
                             player.getAngle(), player.getHealth(),
+                            player.getDeath(), player.getRespawnTime(),
                             player.getPlayerId()
                         ), client
                     )
@@ -161,7 +196,8 @@ class GameServerScene(Scene):
                     new_players[client] = player
                 else:
                     w, h = self.getGame().getSize()
-                    new_players[client] = Player(self.getGame(), [w/2, h/2])
+                    new_players[client] = player.respawn([w/2, h/2])
+
         self.players = new_players
 
         self.serverSocket.serverUnlock()

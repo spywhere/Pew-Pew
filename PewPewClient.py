@@ -10,8 +10,8 @@ class PewPewClient(Game):
         self.setSize((800, 600))
         self.setTargetFPS(60)
         self.setVSync(True)
-        # self.enterScene(GameScene(None))
         host = raw_input("Enter server host: ")
-        self.enterScene(ServerConnectScene(host))
+        username = raw_input("Enter username: ")
+        self.enterScene(ServerConnectScene(username, host))
 
 PewPewClient()

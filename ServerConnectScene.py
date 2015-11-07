@@ -8,7 +8,8 @@ class ServerConnectScene(Scene):
     progress = 0
     delay = 0
 
-    def __init__(self, host, port=5555, msg=""):
+    def __init__(self, username, host, port=5555, msg=""):
+        self.username = username
         self.host = host
         self.port = port
         self.msg = msg
@@ -52,6 +53,6 @@ class ServerConnectScene(Scene):
                 self.progress += 1
                 self.progress %= 3
             if self.socket is not None and self.socket.isConnected():
-                print "Connected"
+                print("Connected")
                 self.socket.sendPacket(RequestGameStatePacket())
-                self.getGame().enterScene(GameScene(self.socket))
+                self.getGame().enterScene(GameScene(self.username, self.socket))

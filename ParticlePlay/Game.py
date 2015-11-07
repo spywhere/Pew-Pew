@@ -89,9 +89,9 @@ class Game:
         if scene is not None:
             if self._debugMode:
                 if sceneName == "UntitledScene":
-                    print "Enter a new scene"
+                    print("Enter a new scene")
                 else:
-                    print "Current Scene: " + scene.name
+                    print("Current Scene: " + scene.name)
             startGame = self._currentScene is None
             self._currentScene = scene.name
             scene.onInit()
@@ -100,7 +100,7 @@ class Game:
 
     def startGame(self):
         if self._debugMode:
-                print "Initializing game..."
+                print("Initializing game...")
         self._running = True
         self._mainWindow = tk.Tk()
         self._mainWindow.protocol("WM_DELETE_WINDOW", self.stopGame)
@@ -118,10 +118,10 @@ class Game:
         except:
             self._mainWindow = None
             if self._debugMode:
-                print "!!! Unexpected error occurred on startGame."
+                print("!!! Unexpected error occurred on startGame.")
             raise
         if self._debugMode:
-                print "Game running..."
+            print("Game running...")
         lastTimer = self.getTimeMicros()
         lastTime = lastTimer
         renderDelta = 0
@@ -168,7 +168,7 @@ class Game:
                     frames, updates, timeDelta/1000.0
                 )
                 if self._debugMode:
-                    print self._infoText
+                    print(self._infoText)
                 frames = 0
                 updates = 0
                 lastTimer = self.getTimeMicros()
@@ -177,12 +177,12 @@ class Game:
         tk.sys.exit(0)
 
     def stopGame(self):
-        print "Attempting to close game..."
+        print("Attempting to close game...")
         if (self._currentScene is not None
                 and not self._gameScenes[self._currentScene].willExit()):
             return
         if self._debugMode:
-                print "Closing game..."
+            print("Closing game...")
         self._running = False
 
     def getTimeMicros(self):

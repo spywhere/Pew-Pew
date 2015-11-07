@@ -8,15 +8,18 @@ class RequestGameStatePacket(GamePacket):
 
 
 class PlayerInfoPacket(GamePacket):
-    def __init__(self, position=[-1, -1], velocity=[0, 0], angle=0, health=0,
-                 pid=0):
+    def __init__(self, name="", position=[-1, -1], velocity=[0, 0], angle=0, health=0,
+                 death=0, respawnTime=0, pid=0):
         self.pid = pid
+        self.name = name
         self.x = position[0]
         self.y = position[1]
         self.vx = velocity[0]
         self.vy = velocity[1]
         self.angle = angle
         self.health = health
+        self.respawnTime = respawnTime
+        self.death = death
 
     @classmethod
     def getPacketId(cls):
@@ -28,24 +31,34 @@ class PlayerInfoPacket(GamePacket):
         if len(datacomponents) >= 7:
             try:
                 pid = int(datacomponents[0])
-                x = float(datacomponents[1])
-                y = float(datacomponents[2])
-                vx = int(datacomponents[3])
-                vy = int(datacomponents[4])
-                angle = float(datacomponents[5])
-                health = int(datacomponents[6])
-                return PlayerInfoPacket([x, y], [vx, vy], angle, health, pid)
+                name = datacomponents[1]
+                x = float(datacomponents[2])
+                y = float(datacomponents[3])
+                vx = int(datacomponents[4])
+                vy = int(datacomponents[5])
+                angle = float(datacomponents[6])
+                health = int(datacomponents[7])
+                respawnTime = float(datacomponents[8])
+                death = int(datacomponents[9])
+                return PlayerInfoPacket(
+                    name,
+                    [x, y], [vx, vy], angle, health, death, respawnTime, pid
+                )
             except Exception:
                 pass
         return None
 
     def toString(self):
-        return "%d,%f,%f,%d,%d,%f,%d" % (
-            self.pid, self.x, self.y, self.vx, self.vy, self.angle, self.health
+        return "%d,%s,%f,%f,%d,%d,%f,%d,%f,%d" % (
+            self.pid, self.name, self.x, self.y, self.vx, self.vy,
+            self.angle, self.health, self.respawnTime, self.death
         )
 
     def getPlayerId(self):
         return self.pid
+
+    def getPlayerName(self):
+        return self.name
 
     def getPosition(self):
         return (self.x, self.y)
@@ -58,6 +71,12 @@ class PlayerInfoPacket(GamePacket):
 
     def getHealth(self):
         return self.health
+
+    def getDeath(self):
+        return self.death
+
+    def getRespawnTime(self):
+        return self.respawnTime
 
 
 class BulletInfoPacket(GamePacket):

@@ -65,7 +65,7 @@ class Input:
     def _keypress(self, event):
         self._keydown[str.lower(event.keysym)] = True
         self._keywaiting[str.lower(event.keysym)] = True
-        # print event.char, event.keycode
+        # print(event.char, event.keycode, event.keysym)
         self._keyrelease = True
 
     def _keyrelease(self, event):

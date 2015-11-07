@@ -31,17 +31,17 @@ class GameSocket(Thread):
         self.handler = handler
 
     def isServerAlive(self):
-        # 10 sec timeout
-        alive = self.lastRequest+10.0 > time.time()
+        # 3 sec timeout
+        alive = self.lastRequest+3.0 > time.time()
         if not alive:
-            print "Server is timeout"
+            print("Server is timeout")
         return alive
 
     def run(self):
         try:
             self.lastRequest = time.time()
-            self.clientSocket = socket(AF_INET, SOCK_STREAM)
-            self.clientSocket.connect((self.host, self.port))
+            self.clientSocket = socket(AF_INET, SOCK_DGRAM)
+            # self.clientSocket.connect((self.host, self.port))
             self.connected = True
         except error as e:
             self.clientSocket = None
@@ -51,7 +51,7 @@ class GameSocket(Thread):
         while (self.connected and not self.willDisconnect and
                 self.isServerAlive()):
             try:
-                data = self.clientSocket.recv(1024)
+                data, serverAddress = self.clientSocket.recvfrom(1024)
                 if data is None:
                     continue
                 packet = GamePacket.parsePacket(data)
@@ -60,7 +60,7 @@ class GameSocket(Thread):
                 if self.listener is not None:
                     self.listener(packet)
             except error as e:
-                print "Server Error: ", e
+                print("Server Error: ", e)
                 break
         if self.clientSocket is not None:
             try:
@@ -75,7 +75,10 @@ class GameSocket(Thread):
 
     def sendPacket(self, packet):
         try:
-            self.clientSocket.sendall(packet.serializeData())
+            self.clientSocket.sendto(
+                packet.serializeData(), (self.host, self.port)
+            )
+            # self.clientSocket.sendall(packet.serializeData())
         except error as e:
             if self.handler is not None:
                 self.handler(e)

@@ -54,7 +54,7 @@ class Renderer:
                 (position[0]-size[0]/2, position[1]+size[1]/2)
             ]
         else:
-            print "Position and size must be at least 2-tuple"
+            print("Position and size must be at least 2-tuple")
             raise Exception
 
     def _toRectCoord(self, position, size):
@@ -88,7 +88,7 @@ class Renderer:
                 (position[0], position[1]+size[1])
             ]
         else:
-            print "Position and size must be at least 2-tuple"
+            print("Position and size must be at least 2-tuple")
             raise Exception
 
     '''
@@ -229,7 +229,7 @@ class Renderer:
             return
         for per in perspective:
             if per == 0:
-                print "Perspective must not be zero"
+                print("Perspective must not be zero")
                 return
         self._render3d._perspective = perspective
 

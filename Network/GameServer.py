@@ -5,7 +5,7 @@ from GameClientWorker import *
 
 
 class GameServer(Thread):
-    clients = []
+    clients = {}
 
     def __init__(self, port, listener=None, handler=None):
         self.lock = Lock()
@@ -32,9 +32,9 @@ class GameServer(Thread):
 
     def run(self):
         try:
-            self.serverSocket = socket(AF_INET, SOCK_STREAM)
+            self.serverSocket = socket(AF_INET, SOCK_DGRAM)
             self.serverSocket.bind(("", self.port))
-            self.serverSocket.listen(1)
+            # self.serverSocket.listen(1)
             self.serverSocket.settimeout(1.5)
             self.connected = True
         except error as e:
@@ -44,13 +44,23 @@ class GameServer(Thread):
                 self.handler(e)
         while self.connected and not self.willDisconnect:
             try:
-                self.clients.append(GameClientWorker(
-                    self, self.serverSocket.accept()
-                ))
+                data, clientAddress = self.serverSocket.recvfrom(1024)
+                if clientAddress not in self.clients:
+                    client = GameClientWorker(
+                        self, clientAddress
+                    )
+                    self.clients[clientAddress] = client
+                else:
+                    client = self.clients[clientAddress]
+                if client.isConnected() and client.isClientAlive():
+                    client.processPacket(data)
+                else:
+                    client.closeSocket()
+                    del self.clients[clientAddress]
             except timeout:
                 continue
         # self.sendPacket(DisconnectPacket())
-        for client in self.clients:
+        for client in self.clients.values():
             client.closeSocket()
             import time
             disconnectTimeout = time.time()
@@ -69,7 +79,7 @@ class GameServer(Thread):
 
     def sendPacket(self, packet, targetClient=None):
         try:
-            for client in self.clients:
+            for client in self.clients.values():
                 packet.setMe(
                     targetClient is not None and targetClient == client
                 )

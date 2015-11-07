@@ -12,10 +12,17 @@ class GameScene(Scene):
     bullets = {}
     bonuses = {}
     players = {}
+    show_info = False
 
-    def __init__(self, clientSocket):
+    def __init__(self, username, clientSocket):
+        self.username = username
         self.clientSocket = clientSocket
         self.clientSocket.setListener(self.listener)
+
+    def playerDelegate(self, player, key):
+        if key == "HealthBar":
+            return self.show_info
+        return True
 
     def listener(self, packet):
         self.clientSocket.clientLock()
@@ -24,22 +31,28 @@ class GameScene(Scene):
             self.player = Player(
                 self.getGame(), [w/2, h/2], Color(255, 255, 255)
             )
+            self.player.setPlayerName(self.username)
             self.bullets = {}
             self.bonuses = {}
             self.players = {}
         elif isinstance(packet, Packets.PlayerInfoPacket):
             if packet.isMe():
                 self.player.setHealth(packet.getHealth())
+                self.player.setDeath(packet.getDeath())
+                self.player.setRespawnTime(packet.getRespawnTime())
             else:
                 if packet.getPlayerId() not in self.players:
                     player = Player(self.getGame())
+                    player.setPlayerName(packet.getPlayerName())
                     self.players[packet.getPlayerId()] = player
                 else:
                     player = self.players[packet.getPlayerId()]
+                player.setDelegate(lambda p, k: self.playerDelegate(p, k))
                 player.setPosition(packet.getPosition())
                 player.setVelocity(packet.getVelocity())
                 player.setAngle(packet.getAngle())
                 player.setHealth(packet.getHealth())
+                player.setDeath(packet.getDeath())
                 player.resetTimeout()
         elif isinstance(packet, Packets.BulletInfoPacket):
             if packet.getBulletId() not in self.bullets:
@@ -69,20 +82,13 @@ class GameScene(Scene):
             )
             self.player.getGun().setTotalBullet(packet.getTotalBullet())
         elif packet is not None:
-            print "Packet received (type " + str(packet) + ")"
+            print("Packet received (type " + str(packet) + ")")
         self.clientSocket.clientUnlock()
 
     def onInit(self):
         w, h = self.getGame().getSize()
         self.player = Player(self.getGame(), [w/2, h/2], Color(255, 255, 255))
-        # import random
-        # for i in range(random.randint(5, 10)):
-        # player = Player(self.getGame(), [
-            # random.randint(100, w-100), random.randint(100, h-100)
-        # ])
-        #   player.setAngle(random.randint(0, 360)*math.pi/180.0)
-        #   player.setHealth(random.randint(10, 100))
-        #   self.players.append(player)
+        self.player.setPlayerName(self.username)
 
     def onRender(self, renderer, delta):
         px, py = self.player.getPosition()
@@ -96,6 +102,27 @@ class GameScene(Scene):
             (10, self.getGame().getSize()[1]-20),
             "Health: " + str(self.player.getHealth())
         )
+        if self.show_info:
+            offset = 0
+            for player in [self.player] + list(self.players.values()):
+                import Tkinter as tk
+                renderer.drawString(
+                    (self.getGame().getWidth() - 10, 5 + offset),
+                    "%s%s: %s Deaths" % (
+                        "> "
+                        if player.getPlayerName() == self.player.getPlayerName()
+                        else "",
+                        player.getPlayerName(), player.getDeath()
+                    ),
+                    anchor=tk.NE
+                )
+                if player.getPlayerName() != self.player.getPlayerName():
+                    renderer.drawString(
+                        player.getPosition(),
+                        player.getPlayerName(),
+                        anchor=tk.CENTER
+                    )
+                offset += 12
         if self.player.getGun().isReloading():
             renderer.drawString(
                 (
@@ -128,6 +155,12 @@ class GameScene(Scene):
         self.clientSocket.clientUnlock()
 
         self.player.onRender(renderer)
+        if self.player.getRespawnTime() > 0:
+            import Tkinter as tk
+            renderer.drawString(
+                [px, py], "%.2fs" % (self.player.getRespawnTime()),
+                anchor=tk.CENTER
+            )
 
     def onUpdate(self, gameInput, delta):
         self.clientSocket.clientLock()
@@ -141,9 +174,11 @@ class GameScene(Scene):
             vy += self.player.getSpeed()
         elif gameInput.isKeyDown("w"):
             vy -= self.player.getSpeed()
+        self.show_info = gameInput.isKeyDown("space")
         self.player.setVelocity([vx, vy])
         self.player.onUpdate(delta)
         self.clientSocket.sendPacket(PlayerInfoPacket(
+            self.player.getPlayerName(),
             self.player.getPosition(), self.player.getVelocity(),
             self.player.getAngle(), self.player.getHealth()
         ))
@@ -196,14 +231,14 @@ class GameScene(Scene):
 
         if self.player.isDead():
             w, h = self.getGame().getSize()
-            self.player = Player(
-                self.getGame(), [w/2, h/2], Color(255, 255, 255)
-            )
+            self.player.respawn([w/2, h/2])
         if not self.clientSocket.isServerAlive():
             from ServerConnectScene import ServerConnectScene
             self.getGame().enterScene(
                 ServerConnectScene(
-                    self.clientSocket.host, self.clientSocket.port,
+                    self.username,
+                    self.clientSocket.host,
+                    self.clientSocket.port,
                     "Server timeout"
                 )
             )
